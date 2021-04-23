@@ -8,18 +8,19 @@
 import numpy as np
 import pandas as pd
 import matplotlib
-
-matplotlib.use('agg')
 import matplotlib.pyplot as plt
+import networkx
 
-matplotlib.rcParams['font.family'] = 'sans-serif'
-matplotlib.rcParams['font.sans-serif'] = 'Arial'
+from matplotlib.backends.backend_agg import FigureCanvasAgg
+from scipy.stats import wilcoxon
+from scipy.stats import friedmanchisquare
 
 import operator
 import math
-from scipy.stats import wilcoxon
-from scipy.stats import friedmanchisquare
-import networkx
+
+matplotlib.use('agg')
+matplotlib.rcParams['font.family'] = 'sans-serif'
+matplotlib.rcParams['font.sans-serif'] = 'Arial'
 
 # inspired from orange3 https://docs.orange.biolab.si/3/data-mining-library/reference/evaluation.cd.html
 def graph_ranks(avranks, names, p_values, cd=None, cdmethod=None, lowv=None, highv=None,
@@ -53,13 +54,6 @@ def graph_ranks(avranks, names, p_values, cd=None, cdmethod=None, lowv=None, hig
         labels (bool, optional): if set to `True`, the calculated avg rank
         values will be displayed
     """
-    try:
-        import matplotlib
-        import matplotlib.pyplot as plt
-        from matplotlib.backends.backend_agg import FigureCanvasAgg
-    except ImportError:
-        raise ImportError("Function graph_ranks requires matplotlib.")
-
     width = float(width)
     textspace = float(textspace)
 
@@ -110,14 +104,13 @@ def graph_ranks(avranks, names, p_values, cd=None, cdmethod=None, lowv=None, hig
         canvas.print_figure(*args, **kwargs)
 
     sums = avranks
-
-    nnames = names
-    ssums = sums
+    n_names = names
+    s_sums = sums
 
     if lowv is None:
-        lowv = min(1, int(math.floor(min(ssums))))
+        lowv = min(1, int(math.floor(min(s_sums))))
     if highv is None:
-        highv = max(len(avranks), int(math.ceil(max(ssums))))
+        highv = max(len(avranks), int(math.ceil(max(s_sums))))
 
     cline = 0.4
 
@@ -191,7 +184,7 @@ def graph_ranks(avranks, names, p_values, cd=None, cdmethod=None, lowv=None, hig
         text(rankpos(a), cline - tick / 2 - 0.05, str(a),
              ha="center", va="bottom", size=16)
 
-    k = len(ssums)
+    k = len(s_sums)
 
     def filter_names(name):
         return name
@@ -200,35 +193,35 @@ def graph_ranks(avranks, names, p_values, cd=None, cdmethod=None, lowv=None, hig
 
     for i in range(math.ceil(k / 2)):
         chei = cline + minnotsignificant + i * space_between_names
-        line([(rankpos(ssums[i]), cline),
-              (rankpos(ssums[i]), chei),
+        line([(rankpos(s_sums[i]), cline),
+              (rankpos(s_sums[i]), chei),
               (textspace - 0.1, chei)],
              linewidth=linewidth)
         if labels:
-            text(textspace + 0.3, chei - 0.075, format(ssums[i], '.4f'), ha="right", va="center", size=10)
-        text(textspace - 0.2, chei, filter_names(nnames[i]), ha="right", va="center", size=16)
+            text(textspace + 0.3, chei - 0.075, format(s_sums[i], '.4f'), ha="right", va="center", size=10)
+        text(textspace - 0.2, chei, filter_names(n_names[i]), ha="right", va="center", size=16)
 
     for i in range(math.ceil(k / 2), k):
         chei = cline + minnotsignificant + (k - i - 1) * space_between_names
-        line([(rankpos(ssums[i]), cline),
-              (rankpos(ssums[i]), chei),
+        line([(rankpos(s_sums[i]), cline),
+              (rankpos(s_sums[i]), chei),
               (textspace + scalewidth + 0.1, chei)],
              linewidth=linewidth)
         if labels:
-            text(textspace + scalewidth - 0.3, chei - 0.075, format(ssums[i], '.4f'), ha="left", va="center", size=10)
-        text(textspace + scalewidth + 0.2, chei, filter_names(nnames[i]),
+            text(textspace + scalewidth - 0.3, chei - 0.075, format(s_sums[i], '.4f'), ha="left", va="center", size=10)
+        text(textspace + scalewidth + 0.2, chei, filter_names(n_names[i]),
              ha="left", va="center", size=16)
 
     # no-significance lines
-    def draw_lines(lines, side=0.05, height=0.1):
-        start = cline + 0.2
-
-        for l, r in lines:
-            line([(rankpos(ssums[l]) - side, start),
-                  (rankpos(ssums[r]) + side, start)],
-                 linewidth=linewidth_sign)
-            start += height
-            print('drawing: ', l, r)
+    # def draw_lines(lines, side=0.05, height=0.1):
+    #     start = cline + 0.2
+    #
+    #     for l, r in lines:
+    #         line([(rankpos(ssums[l]) - side, start),
+    #               (rankpos(ssums[r]) + side, start)],
+    #              linewidth=linewidth_sign)
+    #         start += height
+    #         print('drawing: ', l, r)
 
     # draw_lines(lines)
     start = cline + 0.2
@@ -237,21 +230,21 @@ def graph_ranks(avranks, names, p_values, cd=None, cdmethod=None, lowv=None, hig
 
     # draw no significant lines
     # get the cliques
-    cliques = form_cliques(p_values, nnames)
+    cliques = form_cliques(p_values, n_names)
     i = 1
     achieved_half = False
-    print(nnames)
+    print(n_names)
     for clq in cliques:
         if len(clq) == 1:
             continue
         print(clq)
         min_idx = np.array(clq).min()
         max_idx = np.array(clq).max()
-        if min_idx >= len(nnames) / 2 and achieved_half == False:
+        if min_idx >= len(n_names) / 2 and not achieved_half:
             start = cline + 0.25
             achieved_half = True
-        line([(rankpos(ssums[min_idx]) - side, start),
-              (rankpos(ssums[max_idx]) + side, start)],
+        line([(rankpos(s_sums[min_idx]) - side, start),
+              (rankpos(s_sums[max_idx]) + side, start)],
              linewidth=linewidth_sign)
         start += height
 
@@ -264,7 +257,7 @@ def form_cliques(p_values, nnames):
     m = len(nnames)
     g_data = np.zeros((m, m), dtype=np.int64)
     for p in p_values:
-        if p[3] == False:
+        if not p[3]:
             i = np.where(nnames == p[0])[0][0]
             j = np.where(nnames == p[1])[0][0]
             min_i = min(i, j)
@@ -287,18 +280,18 @@ def draw_cd_diagram(df_perf=None, alpha=0.05, title=None, labels=False):
     for p in p_values:
         print(p)
 
-
     graph_ranks(average_ranks.values, average_ranks.keys(), p_values,
                 cd=None, reverse=True, width=9, textspace=1.5, labels=labels)
 
     font = {'family': 'sans-serif',
-        'color':  'black',
-        'weight': 'normal',
-        'size': 22,
-        }
+            'color': 'black',
+            'weight': 'normal',
+            'size': 22,
+            }
     if title:
-        plt.title(title,fontdict=font, y=0.9, x=0.5)
-    plt.savefig('cd-diagram.png',bbox_inches='tight')
+        plt.title(title, fontdict=font, y=0.9, x=0.5)
+    plt.savefig('cd-diagram.png', bbox_inches='tight')
+
 
 def wilcoxon_holm(alpha=0.05, df_perf=None):
     """
@@ -320,7 +313,7 @@ def wilcoxon_holm(alpha=0.05, df_perf=None):
         for c in classifiers))[1]
     if friedman_p_value >= alpha:
         # then the null hypothesis over the entire classifiers cannot be rejected
-        print('the null hypothesis over the entire classifiers cannot be rejected')
+        print('p=', friedman_p_value, '- null hypothesis over the entire classifiers cannot be rejected')
         exit()
     # get the number of classifiers
     m = len(classifiers)
@@ -331,8 +324,8 @@ def wilcoxon_holm(alpha=0.05, df_perf=None):
         # get the name of classifier one
         classifier_1 = classifiers[i]
         # get the performance of classifier one
-        perf_1 = np.array(df_perf.loc[df_perf['classifier_name'] == classifier_1]['accuracy']
-                          , dtype=np.float64)
+        perf_1 = np.array(df_perf.loc[df_perf['classifier_name'] == classifier_1]['accuracy'],
+                          dtype=np.float64)
         for j in range(i + 1, m):
             # get the name of the second classifier
             classifier_2 = classifiers[j]
@@ -366,8 +359,8 @@ def wilcoxon_holm(alpha=0.05, df_perf=None):
     rank_data = np.array(sorted_df_perf['accuracy']).reshape(m, max_nb_datasets)
 
     # create the data frame containg the accuracies
-    df_ranks = pd.DataFrame(data=rank_data, index=np.sort(classifiers), columns=
-    np.unique(sorted_df_perf['dataset_name']))
+    df_ranks = pd.DataFrame(data=rank_data, index=np.sort(classifiers),
+                            columns=np.unique(sorted_df_perf['dataset_name']))
 
     # number of wins
     dfff = df_ranks.rank(ascending=False)
@@ -378,6 +371,7 @@ def wilcoxon_holm(alpha=0.05, df_perf=None):
     # return the p-values and the average ranks
     return p_values, average_ranks, max_nb_datasets
 
-df_perf = pd.read_csv('DefaultvsTunedvsEnsembleCritDiffAcc.csv',index_col=False)
 
-draw_cd_diagram(df_perf=df_perf, title='Accuracy', labels=True)
+if __name__ == "__main__":
+    data = pd.read_csv('ensembles-cv.csv', index_col=False)
+    draw_cd_diagram(df_perf=data, title='Accuracy', labels=True)
