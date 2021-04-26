@@ -308,13 +308,12 @@ def wilcoxon_holm(alpha=0.05, df_perf=None):
     classifiers = list(df_counts.loc[df_counts['count'] == max_nb_datasets]
                        ['classifier_name'])
     # test the null hypothesis using friedman before doing a post-hoc analysis
-    friedman_p_value = friedmanchisquare(*(
-        np.array(df_perf.loc[df_perf['classifier_name'] == c]['accuracy'])
-        for c in classifiers))[1]
+    friedman_p_value = friedmanchisquare(*(np.array(df_perf.loc[df_perf['classifier_name'] == c]['accuracy'])
+                                           for c in classifiers))[1]
+    print('p=' + str(friedman_p_value))
     if friedman_p_value >= alpha:
-        # then the null hypothesis over the entire classifiers cannot be rejected
-        print('p=', friedman_p_value, '- null hypothesis over the entire classifiers cannot be rejected')
-        exit()
+        print('null hypothesis over the entire classifiers cannot be rejected')
+        # exit()
     # get the number of classifiers
     m = len(classifiers)
     # init array that contains the p-values calculated by the Wilcoxon signed rank test
@@ -349,7 +348,6 @@ def wilcoxon_holm(alpha=0.05, df_perf=None):
         if p_values[i][2] <= new_alpha:
             p_values[i] = (p_values[i][0], p_values[i][1], p_values[i][2], True)
         else:
-            # stop
             break
     # compute the average ranks to be returned (useful for drawing the cd diagram)
     # sort the dataframe of performances
@@ -358,7 +356,7 @@ def wilcoxon_holm(alpha=0.05, df_perf=None):
     # get the rank data
     rank_data = np.array(sorted_df_perf['accuracy']).reshape(m, max_nb_datasets)
 
-    # create the data frame containg the accuracies
+    # create the data frame containing the accuracies
     df_ranks = pd.DataFrame(data=rank_data, index=np.sort(classifiers),
                             columns=np.unique(sorted_df_perf['dataset_name']))
 
@@ -373,5 +371,5 @@ def wilcoxon_holm(alpha=0.05, df_perf=None):
 
 
 if __name__ == "__main__":
-    data = pd.read_csv('ensembles-cv.csv', index_col=False)
+    data = pd.read_csv('data.csv', index_col=False)
     draw_cd_diagram(df_perf=data, title='Accuracy', labels=True)
